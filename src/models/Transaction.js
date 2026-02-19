@@ -152,9 +152,9 @@ const transactionSchema = new mongoose.Schema({
 });
 
 // Indexes for performance
+// Indexes for performance
 transactionSchema.index({ fromUser: 1, createdAt: -1 });
 transactionSchema.index({ toUser: 1, createdAt: -1 });
-transactionSchema.index({ suiTxHash: 1 });
 transactionSchema.index({ status: 1 });
 transactionSchema.index({ type: 1 });
 transactionSchema.index({ chatId: 1 });
@@ -162,30 +162,30 @@ transactionSchema.index({ 'paymentRequest.dueDate': 1 });
 transactionSchema.index({ createdAt: -1 });
 
 // Virtual for formatted amount
-transactionSchema.virtual('formattedAmount').get(function() {
+transactionSchema.virtual('formattedAmount').get(function () {
   return `${this.amount} ${this.currency}`;
 });
 
 // Virtual for transaction direction (from user's perspective)
-transactionSchema.virtual('direction').get(function() {
+transactionSchema.virtual('direction').get(function () {
   // This would need user context to determine if it's incoming or outgoing
   return this.type === 'receive' ? 'incoming' : 'outgoing';
 });
 
 // Instance methods
-transactionSchema.methods.markAsCompleted = function(txHash = null) {
+transactionSchema.methods.markAsCompleted = function (txHash = null) {
   this.status = 'completed';
   if (txHash) this.suiTxHash = txHash;
   return this.save();
 };
 
-transactionSchema.methods.markAsFailed = function(reason = null) {
+transactionSchema.methods.markAsFailed = function (reason = null) {
   this.status = 'failed';
   if (reason) this.description = reason;
   return this.save();
 };
 
-transactionSchema.methods.createRefund = async function(reason) {
+transactionSchema.methods.createRefund = async function (reason) {
   const refund = new mongoose.model('Transaction')({
     fromUser: this.toUser,
     toUser: this.fromUser,
@@ -202,7 +202,7 @@ transactionSchema.methods.createRefund = async function(reason) {
   return refund;
 };
 
-transactionSchema.methods.sendReminder = async function() {
+transactionSchema.methods.sendReminder = async function () {
   if (this.type === 'request' && this.status === 'pending') {
     this.paymentRequest.reminderCount += 1;
     this.paymentRequest.reminderSent = true;
@@ -212,7 +212,7 @@ transactionSchema.methods.sendReminder = async function() {
 };
 
 // Static methods
-transactionSchema.statics.findUserTransactions = function(userId, options = {}) {
+transactionSchema.statics.findUserTransactions = function (userId, options = {}) {
   const { limit = 20, skip = 0, type, status, currency } = options;
 
   const query = {
@@ -235,7 +235,7 @@ transactionSchema.statics.findUserTransactions = function(userId, options = {}) 
     .skip(skip);
 };
 
-transactionSchema.statics.getTransactionStats = function(userId, timeframe = 30) {
+transactionSchema.statics.getTransactionStats = function (userId, timeframe = 30) {
   const startDate = new Date();
   startDate.setDate(startDate.getDate() - timeframe);
 
@@ -266,29 +266,29 @@ transactionSchema.statics.getTransactionStats = function(userId, timeframe = 30)
   ]);
 };
 
-transactionSchema.statics.findPendingRequests = function(userId) {
+transactionSchema.statics.findPendingRequests = function (userId) {
   return this.find({
     toUser: userId,
     type: 'request',
     status: 'pending'
   })
-  .populate('fromUser', 'username displayName profilePicture')
-  .populate('chatId', 'name')
-  .sort({ createdAt: -1 });
+    .populate('fromUser', 'username displayName profilePicture')
+    .populate('chatId', 'name')
+    .sort({ createdAt: -1 });
 };
 
-transactionSchema.statics.findOverduePayments = function() {
+transactionSchema.statics.findOverduePayments = function () {
   return this.find({
     type: 'request',
     status: 'pending',
     'paymentRequest.dueDate': { $lt: new Date() }
   })
-  .populate('fromUser', 'username email')
-  .populate('toUser', 'username email');
+    .populate('fromUser', 'username email')
+    .populate('toUser', 'username email');
 };
 
 // Pre-save middleware
-transactionSchema.pre('save', function(next) {
+transactionSchema.pre('save', function (next) {
   // Validate transaction logic
   if (this.type === 'send' && !this.toUser && !this.externalRecipient) {
     return next(new Error('Send transactions must have a recipient'));
@@ -302,7 +302,7 @@ transactionSchema.pre('save', function(next) {
 });
 
 // Post-save middleware
-transactionSchema.post('save', async function(doc) {
+transactionSchema.post('save', async function (doc) {
   // Emit real-time updates
   try {
     // This would integrate with Socket.io to notify users

@@ -17,13 +17,23 @@ router.get('/', authenticateToken, async (req, res) => {
     // Get user's chats with populated data
     const chats = await Chat.findUserChats(userId, { limit: parseInt(limit), skip: parseInt(skip) });
 
-    // Add unread count for each chat
+    // Add unread count and correct display name for each chat
     const chatsWithUnreadCount = await Promise.all(
       chats.map(async (chat) => {
         const unreadCount = await Message.getUnreadCount(chat._id, userId);
+
+        // For direct chats, find the other participant to use as the name
+        let chatName = chat.name;
+        if (chat.type === 'direct') {
+          const otherParticipant = chat.participants.find(
+            p => p._id.toString() !== userId.toString()
+          );
+          chatName = otherParticipant ? (otherParticipant.displayName || otherParticipant.username) : 'Unknown User';
+        }
+
         return {
           id: chat._id,
-          name: chat.displayName || 'Direct Chat',
+          name: chatName,
           participants: chat.participants.map(p => ({
             id: p._id,
             username: p.username,
@@ -97,12 +107,22 @@ router.post('/', authenticateToken, async (req, res) => {
       // Check if direct chat already exists
       const existingChat = await Chat.findDirectChat(allParticipants[0], allParticipants[1]);
       if (existingChat) {
+        // Get the other participant's display name
+        const otherParticipant = existingChat.participants.find(
+          p => p.toString() !== creatorId.toString()
+        );
+        
+        // Fetch participant details
+        const User = require('../models/User');
+        const otherUser = await User.findById(otherParticipant);
+        const chatName = otherUser ? (otherUser.displayName || otherUser.username) : 'Direct Chat';
+        
         return res.status(200).json({
           success: true,
           chat: {
             id: existingChat._id,
-            name: existingChat.displayName,
-            participants: existingChat.participants,
+            name: chatName,
+            participants: existingChat.participants.map(p => ({ id: p })),
             type: existingChat.type,
             lastActivity: existingChat.lastActivity
           },
@@ -130,7 +150,9 @@ router.post('/', authenticateToken, async (req, res) => {
       success: true,
       chat: {
         id: chat._id,
-        name: chat.displayName || name,
+        name: type === 'direct'
+          ? (chat.participants.find(p => p._id.toString() !== creatorId.toString())?.displayName || 'Direct Chat')
+          : (chat.name || name),
         participants: chat.participants.map(p => ({
           id: p._id,
           username: p.username,
@@ -240,7 +262,7 @@ router.get('/:id/messages', authenticateToken, async (req, res) => {
       content: msg.content,
       type: msg.type,
       timestamp: msg.createdAt,
-      payment: msg.paymentData ? {
+      payment: msg.paymentData && (msg.paymentData.amount || msg.paymentData.transactionHash || msg.paymentData.recipientAddress) ? {
         id: msg.paymentData.transactionHash || msg._id,
         type: msg.type.includes('request') ? 'request' : 'manual',
         amount: msg.paymentData.amount,
@@ -340,7 +362,7 @@ router.post('/:id/messages', authenticateToken, async (req, res) => {
             content: message.content,
             type: message.type,
             timestamp: message.createdAt,
-            payment: message.paymentData ? {
+            payment: message.paymentData && (message.paymentData.amount || message.paymentData.transactionHash || message.paymentData.recipientAddress) ? {
               id: message.paymentData.transactionHash || message._id,
               type: message.type.includes('request') ? 'request' : 'manual',
               amount: message.paymentData.amount,

@@ -4,6 +4,7 @@ const cors = require('cors');
 const helmet = require('helmet');
 const { createServer } = require('http');
 const { Server } = require('socket.io');
+const jwt = require('jsonwebtoken');
 require('dotenv').config();
 
 const app = express();
@@ -13,7 +14,24 @@ const server = createServer(app);
 const io = new Server(server, {
   cors: {
     origin: process.env.FRONTEND_URL || "http://localhost:3000",
-    methods: ["GET", "POST"]
+    methods: ["GET", "POST"],
+    credentials: true
+  }
+});
+
+// Socket.io middleware for authentication
+io.use((socket, next) => {
+  const token = socket.handshake.auth.token;
+  if (!token) {
+    return next(new Error('Authentication error: Token missing'));
+  }
+
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
+    socket.userId = decoded.userId;
+    next();
+  } catch (err) {
+    return next(new Error('Authentication error: Invalid token'));
   }
 });
 
@@ -49,7 +67,14 @@ app.get('/api/health', (req, res) => {
 
 // Socket.io connection handling
 io.on('connection', (socket) => {
-  console.log('User connected:', socket.id);
+  const userId = socket.userId;
+  console.log('User connected:', socket.id, 'UserId:', userId);
+
+  // Join personal room for private notifications
+  if (userId) {
+    socket.join(userId);
+    console.log(`User ${socket.id} joined personal room ${userId}`);
+  }
 
   // Join chat room
   socket.on('join-chat', (chatId) => {

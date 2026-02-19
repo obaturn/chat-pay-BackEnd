@@ -34,6 +34,13 @@ const userSchema = new mongoose.Schema({
     match: [/^0x[a-fA-F0-9]{64}$/, 'Please enter a valid Sui wallet address']
   },
 
+  // Account balance (in NGN)
+  balance: {
+    type: Number,
+    default: 0,
+    min: 0
+  },
+
   // Profile information
   displayName: {
     type: String,
@@ -137,47 +144,43 @@ const userSchema = new mongoose.Schema({
 });
 
 // Indexes for performance
-userSchema.index({ email: 1 });
-userSchema.index({ username: 1 });
-userSchema.index({ zkLoginId: 1 });
-userSchema.index({ walletAddress: 1 });
 userSchema.index({ 'friends': 1 });
 userSchema.index({ lastActive: -1 });
 
 // Virtual for full name (if needed)
-userSchema.virtual('fullName').get(function() {
+userSchema.virtual('fullName').get(function () {
   return this.displayName || this.username;
 });
 
 // Instance methods
-userSchema.methods.getFriendsList = async function() {
+userSchema.methods.getFriendsList = async function () {
   return await mongoose.model('User').find({
     _id: { $in: this.friends }
   }).select('username displayName profilePicture isOnline lastActive');
 };
 
-userSchema.methods.addFriend = function(friendId) {
+userSchema.methods.addFriend = function (friendId) {
   if (!this.friends.includes(friendId)) {
     this.friends.push(friendId);
   }
   return this.save();
 };
 
-userSchema.methods.removeFriend = function(friendId) {
+userSchema.methods.removeFriend = function (friendId) {
   this.friends = this.friends.filter(id => !id.equals(friendId));
   return this.save();
 };
 
 // Static methods
-userSchema.statics.findByWallet = function(walletAddress) {
+userSchema.statics.findByWallet = function (walletAddress) {
   return this.findOne({ walletAddress });
 };
 
-userSchema.statics.findByZkLoginId = function(zkLoginId) {
+userSchema.statics.findByZkLoginId = function (zkLoginId) {
   return this.findOne({ zkLoginId });
 };
 
-userSchema.statics.searchUsers = function(query, limit = 10) {
+userSchema.statics.searchUsers = function (query, limit = 10) {
   return this.find({
     $or: [
       { username: new RegExp(query, 'i') },
@@ -185,12 +188,12 @@ userSchema.statics.searchUsers = function(query, limit = 10) {
       { email: new RegExp(query, 'i') }
     ]
   })
-  .select('username displayName profilePicture isOnline')
-  .limit(limit);
+    .select('username displayName profilePicture isOnline')
+    .limit(limit);
 };
 
 // Pre-save middleware
-userSchema.pre('save', function(next) {
+userSchema.pre('save', function (next) {
   this.lastActive = new Date();
   next();
 });

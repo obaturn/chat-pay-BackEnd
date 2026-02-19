@@ -1,171 +1,96 @@
 const express = require('express');
 const router = express.Router();
 const { authenticateToken } = require('../middleware/auth.middleware');
+const paymentController = require('../controllers/payment.controller');
 
 /**
- * @route POST /api/payments/send
- * @desc Send payment
+ * @route POST /api/payments/initialize
+ * @desc Initialize payment with Paystack
  * @access Private
  */
-router.post('/send', authenticateToken, async (req, res) => {
-  try {
-    const { amount, currency, recipientAddress, description } = req.body;
-    const senderId = req.user._id;
-
-    // TODO: Implement payment sending
-    res.json({
-      success: true,
-      transaction: null,
-      message: 'Send payment not yet implemented'
-    });
-  } catch (error) {
-    res.status(500).json({
-      error: 'Payment failed',
-      message: error.message
-    });
-  }
-});
+router.post('/initialize', authenticateToken, (req, res) =>
+  paymentController.initializePayment(req, res)
+);
 
 /**
- * @route POST /api/payments/request
- * @desc Request payment
+ * @route POST /api/payments/verify
+ * @desc Verify payment from Paystack
  * @access Private
  */
-router.post('/request', authenticateToken, async (req, res) => {
-  try {
-    const { amount, currency, description, chatId } = req.body;
-    const requesterId = req.user._id;
+router.post('/verify', authenticateToken, (req, res) =>
+  paymentController.verifyPayment(req, res)
+);
 
-    // TODO: Implement payment request
-    res.status(201).json({
-      success: true,
-      request: null,
-      message: 'Payment request not yet implemented'
-    });
-  } catch (error) {
-    res.status(500).json({
-      error: 'Request failed',
-      message: error.message
-    });
-  }
-});
+/**
+ * @route POST /api/payments/webhook/paystack
+ * @desc Paystack webhook (no auth needed - webhook signature verified instead)
+ * @access Public
+ */
+router.post('/webhook/paystack', (req, res) =>
+  paymentController.handlePaystackWebhook(req, res)
+);
 
 /**
  * @route GET /api/payments/history
  * @desc Get payment history
  * @access Private
  */
-router.get('/history', authenticateToken, async (req, res) => {
-  try {
-    const userId = req.user._id;
-    const { limit = 20, skip = 0, type, status } = req.query;
-
-    // TODO: Implement payment history
-    res.json({
-      success: true,
-      transactions: [],
-      message: 'Payment history not yet implemented'
-    });
-  } catch (error) {
-    res.status(500).json({
-      error: 'Failed to get history',
-      message: error.message
-    });
-  }
-});
+router.get('/history', authenticateToken, (req, res) =>
+  paymentController.getPaymentHistory(req, res)
+);
 
 /**
- * @route GET /api/payments/:id
+ * @route GET /api/payments/stats
+ * @desc Get payment statistics
+ * @access Private
+ */
+router.get('/stats', authenticateToken, (req, res) =>
+  paymentController.getPaymentStats(req, res)
+);
+
+/**
+ * @route GET /api/payments/banks
+ * @desc Get list of banks
+ * @access Private
+ */
+router.get('/banks', authenticateToken, (req, res) =>
+  paymentController.getBanks(req, res)
+);
+
+/**
+ * @route POST /api/payments/resolve-account
+ * @desc Verify bank account details
+ * @access Private
+ */
+router.post('/resolve-account', authenticateToken, (req, res) =>
+  paymentController.resolveAccount(req, res)
+);
+
+/**
+ * @route POST /api/payments/withdraw
+ * @desc Withdraw funds to bank account
+ * @access Private
+ */
+router.post('/withdraw', authenticateToken, (req, res) =>
+  paymentController.withdraw(req, res)
+);
+
+/**
+ * @route GET /api/payments/:transactionId
  * @desc Get payment details
  * @access Private
  */
-router.get('/:id', authenticateToken, async (req, res) => {
-  try {
-    const { id } = req.params;
-    const userId = req.user._id;
-
-    // TODO: Implement get payment details
-    res.json({
-      success: true,
-      transaction: null,
-      message: 'Get payment details not yet implemented'
-    });
-  } catch (error) {
-    res.status(500).json({
-      error: 'Failed to get payment',
-      message: error.message
-    });
-  }
-});
+router.get('/:transactionId', authenticateToken, (req, res) =>
+  paymentController.getTransactionStatus(req, res)
+);
 
 /**
- * @route PUT /api/payments/:id
- * @desc Update payment status
+ * @route POST /api/payments/:transactionId/cancel
+ * @desc Cancel transaction
  * @access Private
  */
-router.put('/:id', authenticateToken, async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { status, notes } = req.body;
-    const userId = req.user._id;
-
-    // TODO: Implement payment status update
-    res.json({
-      success: true,
-      message: 'Payment update not yet implemented'
-    });
-  } catch (error) {
-    res.status(500).json({
-      error: 'Update failed',
-      message: error.message
-    });
-  }
-});
-
-/**
- * @route POST /api/payments/:id/accept
- * @desc Accept payment request
- * @access Private
- */
-router.post('/:id/accept', authenticateToken, async (req, res) => {
-  try {
-    const { id } = req.params;
-    const userId = req.user._id;
-
-    // TODO: Implement accept payment request
-    res.json({
-      success: true,
-      message: 'Accept payment not yet implemented'
-    });
-  } catch (error) {
-    res.status(500).json({
-      error: 'Accept failed',
-      message: error.message
-    });
-  }
-});
-
-/**
- * @route POST /api/payments/:id/reject
- * @desc Reject payment request
- * @access Private
- */
-router.post('/:id/reject', authenticateToken, async (req, res) => {
-  try {
-    const { id } = req.params;
-    const userId = req.user._id;
-
-    // TODO: Implement reject payment request
-    res.json({
-      success: true,
-      message: 'Reject payment not yet implemented'
-    });
-  } catch (error) {
-    res.status(500).json({
-      error: 'Reject failed',
-      message: error.message
-    });
-  }
-});
+router.post('/:transactionId/cancel', authenticateToken, (req, res) =>
+  paymentController.cancelTransaction(req, res)
+);
 
 module.exports = router;
